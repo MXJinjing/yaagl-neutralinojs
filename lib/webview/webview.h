@@ -800,6 +800,36 @@ public:
                      )script");
     ((void (*)(id, SEL, id))objc_msgSend)(m_window, "setContentView:"_sel,
                                           m_webview);
+    // Native drag strip: a transparent view pinned to the top of the window.
+    // Because the titlebar is transparent and the webview extends under it,
+    // the system titlebar is no longer draggable. mouseDown: starts a native
+    // window drag via performWindowDragWithEvent: (the window server handles
+    // the drag loop, so it is as smooth as a normal titlebar). The webview
+    // content renders beneath this view.
+    auto dragCls =
+        objc_allocateClassPair((Class) "NSView"_cls, "DragRegionView", 0);
+    class_addMethod(
+        dragCls, "mouseDown:"_sel,
+        (IMP)(+[](id self, SEL, id event) {
+          id window = ((id(*)(id, SEL))objc_msgSend)(self, "window"_sel);
+          if (window) {
+            ((void (*)(id, SEL, id))objc_msgSend)(
+                window, "performWindowDragWithEvent:"_sel, event);
+          }
+        }),
+        "v@:@");
+    objc_registerClassPair(dragCls);
+    m_dragView =
+        ((id(*)(id, SEL, CGRect))objc_msgSend)(
+            ((id(*)(id, SEL))objc_msgSend)((id)dragCls, "alloc"_sel),
+            "initWithFrame:"_sel, CGRectMake(0, 0, 0, 0));
+    BOOL contentFlipped =
+        ((BOOL(*)(id, SEL))objc_msgSend)(m_webview, "isFlipped"_sel);
+    ((void (*)(id, SEL, unsigned long))objc_msgSend)(
+        m_dragView, "setAutoresizingMask:"_sel,
+        (unsigned long)(2 | (contentFlipped ? 8 : 32))); // WidthSizable | (MinY or MaxY margin)
+    ((void (*)(id, SEL, id))objc_msgSend)(m_webview, "addSubview:"_sel,
+                                          m_dragView);
     ((void (*)(id, SEL, id))objc_msgSend)(m_window, "makeKeyAndOrderFront:"_sel,
                                           nullptr);
   }
@@ -878,6 +908,18 @@ public:
           CGRectMake(0, 0, width, height), 1, 0);
       ((void (*)(id, SEL))objc_msgSend)(m_window, "center"_sel);
     }
+    // Pin the native drag strip to the top of the content view.
+    if (m_dragView) {
+      CGRect bounds =
+          ((CGRect(*)(id, SEL))objc_msgSend)(m_webview, "bounds"_sel);
+      CGFloat stripHeight = 38;
+      BOOL flipped =
+          ((BOOL(*)(id, SEL))objc_msgSend)(m_webview, "isFlipped"_sel);
+      CGFloat y = flipped ? 0 : bounds.size.height - stripHeight;
+      ((void (*)(id, SEL, CGRect))objc_msgSend)(
+          m_dragView, "setFrame:"_sel,
+          CGRectMake(0, y, bounds.size.width, stripHeight));
+    }
   }
   void navigate(const std::string url) {
     auto nsurl = ((id(*)(id, SEL, id))objc_msgSend)(
@@ -916,6 +958,7 @@ private:
   id m_window;
   id m_webview;
   id m_manager;
+  id m_dragView = nil;
 };
 
 using browser_engine = cocoa_wkwebview_engine;
