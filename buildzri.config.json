@@ -55,6 +55,7 @@
             "-Os"
         ],
         "darwin": [
+            "-x objective-c++",
             "-Wno-deprecated-declarations",
             "-framework WebKit",
             "-framework Cocoa",

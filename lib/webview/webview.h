@@ -644,6 +644,13 @@ using browser_engine = gtk_webkit_engine;
 #define NSWindowStyleMaskMiniaturizable 4
 #define NSWindowStyleMaskTitled 1
 #define NSWindowStyleMaskClosable 2
+// NSWindowStyleMaskFullSizeContentView = 1 << 15: the content view fills the
+// whole window including the titlebar area, so page content can extend behind
+// a transparent titlebar while the traffic-light buttons stay visible.
+#define NSWindowStyleMaskFullSizeContentView 32768
+
+// NSWindowTitleVisibilityHidden: hide the titlebar text (traffic lights stay).
+#define NSWindowTitleHidden 1
 
 #define NSApplicationActivationPolicyRegular 0
 
@@ -845,8 +852,17 @@ public:
     if (resizable) {
       style = style | NSWindowStyleMaskResizable;
     }
+    style = style | NSWindowStyleMaskFullSizeContentView;
     ((void (*)(id, SEL, unsigned long))objc_msgSend)(
         m_window, "setStyleMask:"_sel, style);
+
+    // Make the titlebar transparent and hide its title text. Combined with the
+    // full-size content view above, the webview content is visible through the
+    // titlebar and the macOS traffic lights remain on the left.
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(
+        m_window, "setTitlebarAppearsTransparent:"_sel, 1);
+    ((void (*)(id, SEL, long))objc_msgSend)(
+        m_window, "setTitleVisibility:"_sel, NSWindowTitleHidden);
 
     if (minWidth != -1 || minHeight != -1) {
       ((void (*)(id, SEL, CGSize))objc_msgSend)(
