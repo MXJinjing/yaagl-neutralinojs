@@ -31,7 +31,45 @@ Get started with the neu CLI.
 ```
 
 Start building apps: [neutralino.js.org/docs](https://neutralino.js.org/docs)
- 
+
+## macOS: Transparent title bar (fork feature)
+
+This fork adds an Electron-like `titleBarStyle: hiddenInset` experience on
+macOS: the page content extends under a transparent title bar, the title text
+is hidden, and the macOS traffic-light buttons stay visible on the left.
+
+Because the native title bar is no longer draggable when the content extends
+under it, a native drag strip is pinned to the top of the window so the app
+can still be moved smoothly. The window server handles the drag loop, so there
+is no JS/IPC involvement and it feels exactly like a normal title bar.
+
+Enable it via `neutralino.config.json`:
+
+```json
+{
+  "modes": {
+    "window": {
+      "transparentTitleBar": true,
+      "titleBarDragHeight": 38
+    }
+  }
+}
+```
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `transparentTitleBar` | boolean | `false` | Enables the transparent title bar: full-size content view, hidden title text, traffic lights kept. macOS only. |
+| `titleBarDragHeight` | number | `38` | Height in points of the native drag strip at the top of the window. `0` disables the drag strip. Only used when `transparentTitleBar` is enabled. |
+
+Notes:
+
+- Keep the top-left corner of your UI free (roughly `70×28` px) so the
+  traffic-light buttons are not covered.
+- The drag strip is a native overlay; page content renders underneath it, so
+  you can style the top strip visually (e.g., a translucent bar) to hint that
+  it is draggable.
+- These options are macOS-only and are ignored on other platforms.
+
 ## Why Neutralinojs? 
 
 In Electron and NWjs, you have to install NodeJs and hundreds of dependency libraries. Embedded Chromium and Node make simple apps bloaty. Neutralinojs offers a lightweight and portable SDK which is an alternative for Electron and NW.js. Neutralinojs doesn't bundle Chromium and uses the existing web browser library in the operating system (Eg: gtk-webkit2 on Linux). Neutralinojs implements a WebSocket connection for native operations and embeds a static web server to serve the web content. Also, it offers a built-in [JavaScript client library](https://github.com/neutralinojs/neutralino.js) for developers.
@@ -87,4 +125,3 @@ If you like to support our work, you can donate to Neutralinojs via [Patreon](ht
 [See the complete license file](LICENSE)
 
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fneutralinojs%2Fneutralinojs.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fneutralinojs%2Fneutralinojs?ref=badge_large)
-
