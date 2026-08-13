@@ -382,6 +382,7 @@ namespace controllers {
 void __createWindow() {
     nativeWindow = new webview::webview(windowProps.enableInspector, nullptr);
     nativeWindow->set_title(windowProps.title);
+    nativeWindow->set_titlebar(windowProps.transparentTitleBar, windowProps.titleBarDragHeight);
     nativeWindow->set_size(windowProps.sizeOptions.width, windowProps.sizeOptions.height, windowProps.sizeOptions.minWidth,
                     windowProps.sizeOptions.minHeight, windowProps.sizeOptions.maxWidth, windowProps.sizeOptions.maxHeight,
                     windowProps.sizeOptions.resizable);
@@ -741,6 +742,12 @@ json init(const json &input) {
 
     if(helpers::hasField(input, "hidden"))
         windowProps.hidden = input["hidden"].get<bool>();
+
+    if(helpers::hasField(input, "transparentTitleBar"))
+        windowProps.transparentTitleBar = input["transparentTitleBar"].get<bool>();
+
+    if(helpers::hasField(input, "titleBarDragHeight"))
+        windowProps.titleBarDragHeight = input["titleBarDragHeight"].get<int>();
 
     if(helpers::hasField(input, "exitProcessOnClose"))
         windowProps.exitProcessOnClose = input["exitProcessOnClose"].get<bool>();

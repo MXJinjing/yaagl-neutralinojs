@@ -49,6 +49,8 @@ struct WindowOptions {
     bool borderless= false;
     bool maximize = false;
     bool hidden = false;
+    bool transparentTitleBar = false;
+    int titleBarDragHeight = 38;
     bool maximizable = true;
     bool exitProcessOnClose = true;
     string title = "Neutralinojs window";

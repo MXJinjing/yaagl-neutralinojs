@@ -650,6 +650,7 @@ using browser_engine = gtk_webkit_engine;
 #define NSWindowStyleMaskFullSizeContentView 32768
 
 // NSWindowTitleVisibilityHidden: hide the titlebar text (traffic lights stay).
+#define NSWindowTitleVisible 0
 #define NSWindowTitleHidden 1
 
 #define NSApplicationActivationPolicyRegular 0
@@ -882,17 +883,27 @@ public:
     if (resizable) {
       style = style | NSWindowStyleMaskResizable;
     }
-    style = style | NSWindowStyleMaskFullSizeContentView;
+    if (m_titlebarTransparent) {
+      style = style | NSWindowStyleMaskFullSizeContentView;
+    }
     ((void (*)(id, SEL, unsigned long))objc_msgSend)(
         m_window, "setStyleMask:"_sel, style);
 
-    // Make the titlebar transparent and hide its title text. Combined with the
-    // full-size content view above, the webview content is visible through the
-    // titlebar and the macOS traffic lights remain on the left.
-    ((void (*)(id, SEL, BOOL))objc_msgSend)(
-        m_window, "setTitlebarAppearsTransparent:"_sel, 1);
-    ((void (*)(id, SEL, long))objc_msgSend)(
-        m_window, "setTitleVisibility:"_sel, NSWindowTitleHidden);
+    // When enabled, make the titlebar transparent and hide its title text.
+    // Combined with the full-size content view above, the webview content is
+    // visible through the titlebar and the macOS traffic lights remain on the
+    // left. Otherwise keep the standard titlebar.
+    if (m_titlebarTransparent) {
+      ((void (*)(id, SEL, BOOL))objc_msgSend)(
+          m_window, "setTitlebarAppearsTransparent:"_sel, 1);
+      ((void (*)(id, SEL, long))objc_msgSend)(
+          m_window, "setTitleVisibility:"_sel, NSWindowTitleHidden);
+    } else {
+      ((void (*)(id, SEL, BOOL))objc_msgSend)(
+          m_window, "setTitlebarAppearsTransparent:"_sel, 0);
+      ((void (*)(id, SEL, long))objc_msgSend)(
+          m_window, "setTitleVisibility:"_sel, NSWindowTitleVisible);
+    }
 
     if (minWidth != -1 || minHeight != -1) {
       ((void (*)(id, SEL, CGSize))objc_msgSend)(
@@ -908,18 +919,30 @@ public:
           CGRectMake(0, 0, width, height), 1, 0);
       ((void (*)(id, SEL))objc_msgSend)(m_window, "center"_sel);
     }
-    // Pin the native drag strip to the top of the content view.
+    // Pin the native drag strip to the top of the content view. The strip is
+    // only active when the transparent titlebar is enabled.
     if (m_dragView) {
       CGRect bounds =
           ((CGRect(*)(id, SEL))objc_msgSend)(m_webview, "bounds"_sel);
-      CGFloat stripHeight = 38;
+      CGFloat stripHeight =
+          m_titlebarTransparent ? (CGFloat)m_dragStripHeight : 0;
       BOOL flipped =
           ((BOOL(*)(id, SEL))objc_msgSend)(m_webview, "isFlipped"_sel);
       CGFloat y = flipped ? 0 : bounds.size.height - stripHeight;
       ((void (*)(id, SEL, CGRect))objc_msgSend)(
           m_dragView, "setFrame:"_sel,
           CGRectMake(0, y, bounds.size.width, stripHeight));
+      ((void (*)(id, SEL, BOOL))objc_msgSend)(
+          m_dragView, "setHidden:"_sel, stripHeight <= 0);
     }
+  }
+
+  // Enables the transparent titlebar (full-size content view + hidden title
+  // text, traffic lights stay) and sets the height of the native drag strip
+  // used to move the window. Pass dragHeight <= 0 to disable the drag strip.
+  void set_titlebar(bool transparent, double dragHeight) {
+    m_titlebarTransparent = transparent;
+    m_dragStripHeight = dragHeight;
   }
   void navigate(const std::string url) {
     auto nsurl = ((id(*)(id, SEL, id))objc_msgSend)(
@@ -959,6 +982,8 @@ private:
   id m_webview;
   id m_manager;
   id m_dragView = nil;
+  bool m_titlebarTransparent = false;
+  double m_dragStripHeight = 38;
 };
 
 using browser_engine = cocoa_wkwebview_engine;
