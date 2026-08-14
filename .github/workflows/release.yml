@@ -1,59 +1,86 @@
-
 name: Create release
-on: 
+
+on:
   workflow_dispatch:
-    inputs: 
-      version: 
-        type: text
-        description: 'Version number Eg: 4.2.0' 
+    inputs:
+      version:
+        type: string
+        description: "Fork release version, for example 4.11.0-yaagl.1"
+        required: true
+
 permissions:
   contents: write
+
 jobs:
-
   build-darwin:
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
-    - name: Build
-      run: |
-        export MACOSX_DEPLOYMENT_TARGET=11.0
-        export CXX=clang++\ -ObjC++ 
-        ./scripts/bz.py --target_arch x64
-        ./scripts/bz.py --target_arch arm64
-        lipo bin/neutralino-mac_x64 bin/neutralino-mac_arm64 -create -output bin/neutralino-mac_universal
-    - name: Upload Artifacts
-      uses: actions/upload-artifact@v2
-      with:
-        name: darwin_binary
-        path: |
-          bin/neutralino-mac_x64
-          bin/neutralino-mac_arm64
-          bin/neutralino-mac_universal
-        
-  create-release:
-    needs: [build-darwin]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout 
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Download Darwin build artifacts 
-      uses: actions/download-artifact@v2
-      with:
-        name: darwin_binary
-        path: ./bin
-        
-    - name: Create Release zip
-      uses: vimtor/action-zip@v1
-      with:
-        files: ./bin/neutralino-mac_x64 ./bin/neutralino-mac_arm64 ./bin/neutralino-mac_universal
-        dest: './bin/neutralinojs-v${{github.event.inputs.version}}.zip' 
-        
-    - name: Create a GitHub release
-      uses: ncipollo/release-action@v1
-      with:
-          tag: v${{github.event.inputs.version}}
-          name: Neutralinojs v${{github.event.inputs.version}} released!
-          artifacts: './bin/neutralinojs-v${{github.event.inputs.version}}.zip'
-          owner: 3Shain
+      - name: Build macOS binaries
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET=11.0
+          export CXX="clang++ -ObjC++"
+          ./scripts/bz.py --target_arch x64
+          ./scripts/bz.py --target_arch arm64
+          lipo bin/neutralino-mac_x64 bin/neutralino-mac_arm64 \
+            -create -output bin/neutralino-mac_universal
+
+      - name: Verify architectures and fork features
+        run: |
+          lipo -verify_arch x86_64 bin/neutralino-mac_x64
+          lipo -verify_arch arm64 bin/neutralino-mac_arm64
+          lipo -verify_arch x86_64 arm64 bin/neutralino-mac_universal
+          strings bin/neutralino-mac_arm64 | grep -q '^transparentTitleBar$'
+          strings bin/neutralino-mac_arm64 | grep -q '^titleBarDragHeight$'
+
+      - name: Upload Darwin binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: darwin-binaries
+          if-no-files-found: error
+          path: |
+            bin/neutralino-mac_x64
+            bin/neutralino-mac_arm64
+            bin/neutralino-mac_universal
+
+  create-release:
+    needs: build-darwin
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Darwin binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: darwin-binaries
+          path: bin
+
+      - name: Package and checksum release
+        run: |
+          if ! printf '%s' "$RELEASE_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+-yaagl\.[0-9]+$'; then
+            echo "Invalid fork release version: $RELEASE_VERSION" >&2
+            exit 1
+          fi
+          archive="neutralinojs-v${RELEASE_VERSION}.zip"
+          (cd bin && zip -9 "$archive" \
+            neutralino-mac_x64 neutralino-mac_arm64 neutralino-mac_universal)
+          (cd bin && sha256sum \
+            neutralino-mac_x64 neutralino-mac_arm64 neutralino-mac_universal \
+            "$archive" > SHA256SUMS)
+
+      - name: Create GitHub release
+        run: |
+          tag="v${RELEASE_VERSION}"
+          gh release create "$tag" \
+            "bin/neutralinojs-v${RELEASE_VERSION}.zip" \
+            "bin/SHA256SUMS" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Neutralinojs ${tag}" \
+            --generate-notes
