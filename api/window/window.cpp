@@ -382,7 +382,9 @@ namespace controllers {
 void __createWindow() {
     nativeWindow = new webview::webview(windowProps.enableInspector, nullptr);
     nativeWindow->set_title(windowProps.title);
+#if defined(__APPLE__)
     nativeWindow->set_titlebar(windowProps.transparentTitleBar, windowProps.titleBarDragHeight);
+#endif
     nativeWindow->set_size(windowProps.sizeOptions.width, windowProps.sizeOptions.height, windowProps.sizeOptions.minWidth,
                     windowProps.sizeOptions.minHeight, windowProps.sizeOptions.maxWidth, windowProps.sizeOptions.maxHeight,
                     windowProps.sizeOptions.resizable);
