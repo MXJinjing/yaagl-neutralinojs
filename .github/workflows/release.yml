@@ -67,6 +67,8 @@ jobs:
             echo "Invalid fork release version: $RELEASE_VERSION" >&2
             exit 1
           fi
+          chmod 0755 bin/neutralino-mac_x64 bin/neutralino-mac_arm64 \
+            bin/neutralino-mac_universal
           archive="neutralinojs-v${RELEASE_VERSION}.zip"
           (cd bin && zip -9 "$archive" \
             neutralino-mac_x64 neutralino-mac_arm64 neutralino-mac_universal)
