@@ -29,9 +29,9 @@ jobs:
 
       - name: Verify architectures and fork features
         run: |
-          lipo -verify_arch x86_64 bin/neutralino-mac_x64
-          lipo -verify_arch arm64 bin/neutralino-mac_arm64
-          lipo -verify_arch x86_64 arm64 bin/neutralino-mac_universal
+          lipo bin/neutralino-mac_x64 -verify_arch x86_64
+          lipo bin/neutralino-mac_arm64 -verify_arch arm64
+          lipo bin/neutralino-mac_universal -verify_arch x86_64 arm64
           strings bin/neutralino-mac_arm64 | grep -q '^transparentTitleBar$'
           strings bin/neutralino-mac_arm64 | grep -q '^titleBarDragHeight$'
 
