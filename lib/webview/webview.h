@@ -638,6 +638,10 @@ using browser_engine = gtk_webkit_engine;
 #include <CoreGraphics/CoreGraphics.h>
 #include <objc/objc-runtime.h>
 
+#if defined(__x86_64__)
+#include <objc/message.h>
+#endif
+
 #define NSBackingStoreBuffered 2
 
 #define NSWindowStyleMaskResizable 8
@@ -922,8 +926,14 @@ public:
     // Pin the native drag strip to the top of the content view. The strip is
     // only active when the transparent titlebar is enabled.
     if (m_dragView) {
+#if defined(__x86_64__)
+      CGRect bounds;
+      ((void (*)(CGRect *, id, SEL))objc_msgSend_stret)(
+          &bounds, m_webview, "bounds"_sel);
+#else
       CGRect bounds =
           ((CGRect(*)(id, SEL))objc_msgSend)(m_webview, "bounds"_sel);
+#endif
       CGFloat stripHeight =
           m_titlebarTransparent ? (CGFloat)m_dragStripHeight : 0;
       BOOL flipped =
